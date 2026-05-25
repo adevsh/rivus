@@ -1,0 +1,121 @@
+{
+  "listen": ":8080",
+  "tls": {
+    "enabled": false,
+    "cert_file": "certs/server.crt",
+    "key_file": "certs/server.key"
+  },
+  "transport": {
+    "max_idle_conns": 200,
+    "dial_timeout_seconds": 5,
+    "response_header_timeout_seconds": 15,
+    "idle_conn_timeout_seconds": 90
+  },
+  "features": {
+    "rate_limiter": true,
+    "circuit_breaker": true,
+    "health_check": true,
+    "metrics": true
+  },
+  "rate_limiter": {
+    "per_ip": {
+      "requests_per_second": 50.0,
+      "burst": 100
+    },
+    "per_backend": {
+      "requests_per_second": 200.0,
+      "burst": 400
+    }
+  },
+  "health_check": {
+    "interval_seconds": 10,
+    "path": "/healthz",
+    "timeout_seconds": 2
+  },
+  "circuit_breaker": {
+    "failure_threshold": 5,
+    "cooldown_seconds": 30
+  },
+  "upstreams": {
+    "platform-core": {
+      "prefix": "/api/v1/platform-core",
+      "strip_prefix": false,
+      "balancer": "round_robin",
+      "backends": [
+        { "url": "http://corporate-ops-platform_core:8080" }
+      ]
+    },
+    "people-core": {
+      "prefix": "/api/v1/people-core",
+      "strip_prefix": false,
+      "balancer": "round_robin",
+      "backends": [
+        { "url": "http://corporate-ops-people_core:8080" }
+      ]
+    },
+    "hr-talent": {
+      "prefix": "/api/v1/hr-talent",
+      "strip_prefix": false,
+      "balancer": "round_robin",
+      "backends": [
+        { "url": "http://corporate-ops-hr_talent:8080" }
+      ]
+    },
+    "payroll": {
+      "prefix": "/api/v1/payroll",
+      "strip_prefix": false,
+      "balancer": "round_robin",
+      "backends": [
+        { "url": "http://corporate-ops-payroll:8080" }
+      ]
+    },
+    "accounting": {
+      "prefix": "/api/v1/accounting",
+      "strip_prefix": false,
+      "balancer": "round_robin",
+      "backends": [
+        { "url": "http://corporate-ops-accounting:8080" }
+      ]
+    },
+    "fp-and-a": {
+      "prefix": "/api/v1/fp-and-a",
+      "strip_prefix": false,
+      "balancer": "round_robin",
+      "backends": [
+        { "url": "http://corporate-ops-fp_and_a:8080" }
+      ]
+    },
+    "treasury": {
+      "prefix": "/api/v1/treasury",
+      "strip_prefix": false,
+      "balancer": "round_robin",
+      "backends": [
+        { "url": "http://corporate-ops-treasury:8080" }
+      ]
+    },
+    "expense": {
+      "prefix": "/api/v1/expense",
+      "strip_prefix": false,
+      "balancer": "round_robin",
+      "backends": [
+        { "url": "http://corporate-ops-expense:8080" }
+      ]
+    },
+    "crm": {
+      "prefix": "/api/v1/crm",
+      "strip_prefix": false,
+      "balancer": "round_robin",
+      "backends": [
+        { "url": "http://corporate-ops-crm:8080" }
+      ]
+    },
+    "erp": {
+      "prefix": "/api/v1/erp",
+      "strip_prefix": false,
+      "balancer": "round_robin",
+      "backends": [
+        { "url": "http://corporate-ops-erp:8080" }
+      ]
+    }
+  }
+}
