@@ -1,0 +1,73 @@
+{
+  "listen": ":8080",
+  "tls": {
+    "enabled": false,
+    "cert_file": "certs/server.crt",
+    "key_file": "certs/server.key"
+  },
+  "transport": {
+    "max_idle_conns": 200,
+    "dial_timeout_seconds": 5,
+    "response_header_timeout_seconds": 10,
+    "idle_conn_timeout_seconds": 90
+  },
+  "features": {
+    "rate_limiter": true,
+    "circuit_breaker": true,
+    "health_check": true,
+    "metrics": true
+  },
+  "rate_limiter": {
+    "per_ip": {
+      "requests_per_second": 50.0,
+      "burst": 100
+    },
+    "per_backend": {
+      "requests_per_second": 200.0,
+      "burst": 400
+    }
+  },
+  "health_check": {
+    "interval_seconds": 10,
+    "path": "/health",
+    "timeout_seconds": 2
+  },
+  "circuit_breaker": {
+    "failure_threshold": 5,
+    "cooldown_seconds": 30
+  },
+  "upstreams": {
+    "api": {
+      "prefix": "/api",
+      "strip_prefix": false,
+      "replace_prefix": "/v1",
+      "balancer": "round_robin",
+      "backends": [
+        {
+          "url": "http://127.0.0.1:9001"
+        },
+        {
+          "url": "http://127.0.0.1:9002"
+        }
+      ]
+    },
+    "static": {
+      "prefix": "/static",
+      "strip_prefix": false,
+      "replace_prefix": "",
+      "rewrite": {
+        "pattern": "^/static/(.*)$",
+        "replacement": "/assets/$1"
+      },
+      "balancer": "least_connections",
+      "backends": [
+        {
+          "url": "http://127.0.0.1:9011"
+        },
+        {
+          "url": "http://127.0.0.1:9012"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,45 @@
+services:
+  api1:
+    build:
+      context: ./upstream-app
+      dockerfile: Dockerfile
+    image: rivus-upstream-bun:local
+    container_name: rivus-api1
+    environment:
+      APP_NAME: api1
+      PORT: 3000
+    ports:
+      - "9001:3000"
+
+  api2:
+    image: rivus-upstream-bun:local
+    container_name: rivus-api2
+    environment:
+      APP_NAME: api2
+      PORT: 3000
+    ports:
+      - "9002:3000"
+    depends_on:
+      - api1
+
+  static1:
+    image: rivus-upstream-bun:local
+    container_name: rivus-static1
+    environment:
+      APP_NAME: static1
+      PORT: 3000
+    ports:
+      - "9011:3000"
+    depends_on:
+      - api1
+
+  static2:
+    image: rivus-upstream-bun:local
+    container_name: rivus-static2
+    environment:
+      APP_NAME: static2
+      PORT: 3000
+    ports:
+      - "9012:3000"
+    depends_on:
+      - api1
