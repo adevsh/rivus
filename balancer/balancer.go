@@ -1,3 +1,6 @@
+// Package balancer provides request dispatch strategies for upstream backend
+// pools. It supports round-robin and least-connections selection and filters
+// out unavailable backends before each pick.
 package balancer
 
 import (

@@ -1,5 +1,8 @@
 package balancer
 
+// LeastConn strategy — picks the available backend with the fewest active
+// connections, preferring less-loaded targets for long-lived or expensive requests.
+
 import "github.com/adevsh/rivus/backend"
 
 // LeastConn selects the available backend with the lowest active connections.

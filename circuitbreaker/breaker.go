@@ -1,3 +1,6 @@
+// Package circuitbreaker implements a three-state (closed → open → half-open)
+// per-backend circuit breaker that limits request admission based on configurable
+// failure thresholds and a cooldown period.
 package circuitbreaker
 
 import (

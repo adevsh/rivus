@@ -1,5 +1,8 @@
 package ratelimit
 
+// BackendLimiter — per-backend token-bucket rate limiting. Caps the throughput
+// directed at a single upstream target independently of per-IP limiting.
+
 import (
 	"sync"
 	"time"

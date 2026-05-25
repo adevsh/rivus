@@ -1,9 +1,11 @@
+// Package backend holds the runtime state for one upstream target: its URL,
+// health flag, active-connection counter, circuit breaker, and per-backend
+// rate limiter.
 package backend
 
 import (
 	"fmt"
 	"net/url"
-	"sync"
 	"sync/atomic"
 
 	"github.com/adevsh/rivus/circuitbreaker"
@@ -29,7 +31,6 @@ type Backend struct {
 	TotalErrors   atomic.Int64
 	Breaker       *circuitbreaker.Breaker
 	RateLimiter   *ratelimit.BackendLimiter
-	mu            sync.RWMutex
 }
 
 // New builds a runtime backend from config and optional feature configs.

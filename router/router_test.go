@@ -42,6 +42,42 @@ func TestRouterLongestPrefixMatch(t *testing.T) {
 	}
 }
 
+// TestRouterPrefixBoundary verifies that prefix matching is segment-aware:
+// "/api" must not match "/apitest".
+func TestRouterPrefixBoundary(t *testing.T) {
+	t.Parallel()
+
+	uAPI := mustUpstream(t, "api", config.UpstreamConfig{
+		Prefix:   "/api",
+		Balancer: config.BalancerRoundRobin,
+		Backends: []config.BackendConfig{{URL: "http://127.0.0.1:9302"}},
+	})
+
+	r := New(map[string]*upstream.Upstream{"api": uAPI})
+
+	cases := []struct {
+		path string
+		want *upstream.Upstream
+	}{
+		{"/api", uAPI},
+		{"/api/users", uAPI},
+		{"/apitest", nil},
+		{"/api-v2", nil},
+		{"/other", nil},
+	}
+
+	for _, tc := range cases {
+		got := r.Match(tc.path)
+		if got != tc.want {
+			if tc.want == nil {
+				t.Errorf("Match(%q) = %q, want nil", tc.path, got.Name)
+			} else {
+				t.Errorf("Match(%q) = nil, want %q", tc.path, tc.want.Name)
+			}
+		}
+	}
+}
+
 func mustUpstream(t *testing.T, name string, cfg config.UpstreamConfig) *upstream.Upstream {
 	t.Helper()
 

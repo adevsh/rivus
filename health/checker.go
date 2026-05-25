@@ -1,8 +1,12 @@
+// Package health periodically probes backend URLs and updates each backend's
+// health state, allowing the router to exclude unreachable targets from
+// request dispatch.
 package health
 
 import (
 	"context"
-	"log"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -81,19 +85,22 @@ func (c *Checker) probe(b *backend.Backend) {
 	resp, err := c.client.Get(healthURL)
 	if err != nil {
 		b.Healthy.Store(false)
-		log.Printf("health probe failed backend=%s err=%v", b.URL.String(), err)
+		slog.Warn("health probe failed", "backend", b.URL.String(), "err", err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
 		b.Healthy.Store(true)
-		log.Printf("health probe healthy backend=%s status=%d", b.URL.String(), resp.StatusCode)
+		slog.Debug("health probe healthy", "backend", b.URL.String(), "status", resp.StatusCode)
 		return
 	}
 
 	b.Healthy.Store(false)
-	log.Printf("health probe unhealthy backend=%s status=%d", b.URL.String(), resp.StatusCode)
+	slog.Warn("health probe unhealthy", "backend", b.URL.String(), "status", resp.StatusCode)
 }
 
 func buildHealthURL(base *url.URL, path string) string {

@@ -1,3 +1,5 @@
+// Package main is the rivus entry point — it loads config, builds the proxy
+// server, and handles OS signals for graceful shutdown.
 package main
 
 import (

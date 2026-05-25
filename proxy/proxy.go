@@ -1,3 +1,6 @@
+// Package proxy wires all runtime components (router, upstreams, health checker,
+// rate limiter, circuit breaker, metrics collector) into an HTTP or HTTPS server
+// and manages its lifecycle.
 package proxy
 
 import (
@@ -48,7 +51,7 @@ func New(cfg *config.Config) (*Server, error) {
 
 	var ipLimiter *ratelimit.IPLimiter
 	if cfg.Features.RateLimiter {
-		ipLimiter = ratelimit.NewIPLimiter(cfg.RateLimiter.PerIP)
+		ipLimiter = ratelimit.NewIPLimiter(cfg.RateLimiter.PerIP, cfg.TrustedProxyNets())
 	}
 
 	var collector *metrics.Collector
@@ -92,7 +95,11 @@ func New(cfg *config.Config) (*Server, error) {
 	root := http.NewServeMux()
 	root.Handle("/", appHandler)
 	if collector != nil {
-		root.Handle("/metrics", collector.Handler())
+		metricsHandler := http.Handler(collector.Handler())
+		if ipLimiter != nil {
+			metricsHandler = ipLimiter.Handler(metricsHandler)
+		}
+		root.Handle("/metrics", metricsHandler)
 	}
 
 	httpServer := &http.Server{

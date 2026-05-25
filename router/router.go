@@ -1,3 +1,6 @@
+// Package router dispatches incoming HTTP requests to upstreams using
+// longest-prefix matching on the request path, with segment-boundary awareness
+// so that "/api" never accidentally matches "/apitest".
 package router
 
 import (
@@ -43,13 +46,22 @@ func New(upstreams map[string]*upstream.Upstream) *Router {
 }
 
 // Match returns the first upstream whose prefix matches the request path.
+// Matching is segment-aware: "/api" matches "/api" and "/api/foo" but not "/apitest".
+// A prefix of "/" acts as a catch-all and matches any non-empty path.
 func (r *Router) Match(path string) *upstream.Upstream {
 	for _, route := range r.routes {
-		if strings.HasPrefix(path, route.prefix) {
+		if matchesPrefix(path, route.prefix) {
 			return route.upstream
 		}
 	}
 	return nil
+}
+
+func matchesPrefix(path, prefix string) bool {
+	if prefix == "/" {
+		return true
+	}
+	return path == prefix || strings.HasPrefix(path, prefix+"/")
 }
 
 // ServeHTTP routes to matching upstream or returns 404 when no route matches.

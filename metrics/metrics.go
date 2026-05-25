@@ -1,3 +1,6 @@
+// Package metrics collects gateway counters (uptime, request totals, active
+// connections, per-backend health, circuit-breaker state, rate-limiter drops)
+// and serves them as a JSON snapshot at the /metrics endpoint.
 package metrics
 
 import (
@@ -122,8 +125,7 @@ func (c *Collector) Snapshot() Snapshot {
 
 // Handler returns an HTTP handler that serves the current metrics snapshot as JSON.
 func (c *Collector) Handler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		_ = r
+	return func(w http.ResponseWriter, _ *http.Request) {
 		data, err := json.Marshal(c.Snapshot())
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

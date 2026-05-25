@@ -1,9 +1,13 @@
+// Package config defines the rivus JSON configuration schema and provides a
+// strict loader (unknown fields rejected) plus validation for upstreams,
+// transport tuning, feature flags, and trusted-proxy CIDRs.
 package config
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"strings"
@@ -100,6 +104,7 @@ type Config struct {
 	RateLimiter    RateLimiterConfig         `json:"rate_limiter"`
 	HealthCheck    HealthCheckConfig         `json:"health_check"`
 	CircuitBreaker CircuitBreakerConfig      `json:"circuit_breaker"`
+	TrustedProxies []string                  `json:"trusted_proxies"`
 	Upstreams      map[string]UpstreamConfig `json:"upstreams"`
 }
 
@@ -137,6 +142,12 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	for i, cidr := range c.TrustedProxies {
+		if _, _, err := net.ParseCIDR(cidr); err != nil {
+			return fmt.Errorf("trusted_proxies[%d] %q is not a valid CIDR: %w", i, cidr, err)
+		}
+	}
+
 	for name, up := range c.Upstreams {
 		if len(up.Backends) == 0 {
 			return fmt.Errorf("upstream %q must have at least one backend", name)
@@ -158,4 +169,15 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+// TrustedProxyNets parses and returns the configured trusted proxy CIDRs as
+// net.IPNet values. Call only after Validate — all entries are guaranteed parseable.
+func (c *Config) TrustedProxyNets() []*net.IPNet {
+	nets := make([]*net.IPNet, 0, len(c.TrustedProxies))
+	for _, cidr := range c.TrustedProxies {
+		_, n, _ := net.ParseCIDR(cidr)
+		nets = append(nets, n)
+	}
+	return nets
 }

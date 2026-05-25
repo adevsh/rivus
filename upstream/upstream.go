@@ -1,3 +1,6 @@
+// Package upstream owns the per-route runtime: path rewriting, backend
+// selection, circuit-breaker and rate-limiter gating, and the reverse-proxy
+// request lifecycle including X-Forwarded-For chaining and structured logging.
 package upstream
 
 import (
@@ -106,7 +109,12 @@ func (u *Upstream) Next() *backend.Backend {
 	return u.balancer.Next(u.backends)
 }
 
-// RewritePath rewrites request path with configured precedence rules.
+// RewritePath rewrites the request path according to the following precedence
+// (only the first matching rule fires):
+//  1. rewrite — regex ReplaceAll if the pattern matches.
+//  2. replace_prefix — replace the first occurrence of the upstream prefix.
+//  3. strip_prefix — remove the upstream prefix from the start of path.
+//  4. passthrough — path is returned unchanged.
 func (u *Upstream) RewritePath(path string) string {
 	if u.rewriteRe != nil && u.rewriteRe.MatchString(path) {
 		return u.rewriteRe.ReplaceAllString(path, u.cfg.Rewrite.Replacement)
@@ -151,7 +159,12 @@ func (u *Upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			req.URL.Path = u.RewritePath(req.URL.Path)
 			req.URL.RawQuery = originalQuery
 			req.Host = b.URL.Host
-			req.Header.Set("X-Forwarded-For", clientIP)
+			prior := req.Header.Get("X-Forwarded-For")
+			if prior != "" {
+				req.Header.Set("X-Forwarded-For", prior+", "+clientIP)
+			} else {
+				req.Header.Set("X-Forwarded-For", clientIP)
+			}
 		},
 		ErrorHandler: func(rw http.ResponseWriter, _ *http.Request, _ error) {
 			hadError.Store(true)

@@ -1,5 +1,8 @@
 package balancer
 
+// RoundRobin strategy — distributes requests across available backends in cyclic
+// order, using an atomic counter for lock-free, concurrent-safe selection.
+
 import (
 	"sync/atomic"
 

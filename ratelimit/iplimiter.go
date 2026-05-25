@@ -1,3 +1,6 @@
+// Package ratelimit provides per-IP and per-backend token-bucket rate limiters
+// for HTTP middleware. The per-IP limiter supports a trusted-proxy CIDR list
+// for accurate client IP resolution behind load balancers.
 package ratelimit
 
 import (
@@ -29,17 +32,20 @@ type IPLimiter struct {
 	buckets sync.Map
 	cfg     PerIPLimiterConfig
 	limited atomic.Int64
+	trusted []*net.IPNet
 }
 
 // NewIPLimiter creates a per-IP limiter with shared settings.
-func NewIPLimiter(cfg PerIPLimiterConfig) *IPLimiter {
+// trusted is an optional list of CIDR networks whose reverse-proxies are trusted
+// to set an accurate X-Forwarded-For chain; pass nil to always use RemoteAddr.
+func NewIPLimiter(cfg PerIPLimiterConfig, trusted []*net.IPNet) *IPLimiter {
 	if cfg.Burst <= 0 {
 		cfg.Burst = 1
 	}
 	if cfg.RequestsPerSecond <= 0 {
 		cfg.RequestsPerSecond = 1
 	}
-	return &IPLimiter{cfg: cfg}
+	return &IPLimiter{cfg: cfg, trusted: trusted}
 }
 
 // Allow returns true when the IP has at least one available token.
@@ -117,7 +123,7 @@ func (l *IPLimiter) Cleanup(ctx context.Context) {
 // Handler enforces per-IP limiting and forwards accepted requests.
 func (l *IPLimiter) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := clientIP(r)
+		ip := l.clientIP(r)
 		if !l.Allow(ip) {
 			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 			return
@@ -126,24 +132,51 @@ func (l *IPLimiter) Handler(next http.Handler) http.Handler {
 	})
 }
 
-func clientIP(r *http.Request) string {
-	xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For"))
-	if xff != "" {
-		parts := strings.Split(xff, ",")
-		if len(parts) > 0 {
-			leftMost := strings.TrimSpace(parts[0])
-			if leftMost != "" {
-				return leftMost
-			}
-		}
+// clientIP returns the effective client IP. When the immediate peer (r.RemoteAddr)
+// belongs to a configured trusted-proxy CIDR, XFF is walked right-to-left to find
+// the first untrusted hop — that is the real client. With no trusted CIDRs,
+// RemoteAddr is always used regardless of any X-Forwarded-For header.
+func (l *IPLimiter) clientIP(r *http.Request) string {
+	remote := splitHost(r.RemoteAddr)
+
+	if len(l.trusted) == 0 || !ipInNets(remote, l.trusted) {
+		return remote
 	}
 
-	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
+	xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For"))
+	if xff == "" {
+		return remote
+	}
+	parts := strings.Split(xff, ",")
+	for i := len(parts) - 1; i >= 0; i-- {
+		candidate := strings.TrimSpace(parts[i])
+		if candidate != "" && !ipInNets(candidate, l.trusted) {
+			return candidate
+		}
+	}
+	return remote
+}
+
+func splitHost(addr string) string {
+	host, _, err := net.SplitHostPort(strings.TrimSpace(addr))
 	if err == nil && host != "" {
 		return host
 	}
-	if strings.TrimSpace(r.RemoteAddr) != "" {
-		return strings.TrimSpace(r.RemoteAddr)
+	if trimmed := strings.TrimSpace(addr); trimmed != "" {
+		return trimmed
 	}
 	return "unknown"
+}
+
+func ipInNets(ip string, nets []*net.IPNet) bool {
+	parsed := net.ParseIP(ip)
+	if parsed == nil {
+		return false
+	}
+	for _, n := range nets {
+		if n.Contains(parsed) {
+			return true
+		}
+	}
+	return false
 }

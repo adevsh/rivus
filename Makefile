@@ -1,4 +1,4 @@
-GO := /home/adevsh/.gvm/gos/go1.24.13/bin/go
+GO ?= go
 PCOMPOSE := podman compose
 
 .PHONY: test stress build lint upstream-up upstream-down upstream-logs upstream-ps demo-rivus demo-api demo-static
